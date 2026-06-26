@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de Instalação — Unity & Visual Studio</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f0f2f5;
+    --card: #ffffff;
+    --border: #e0e0e0;
+    --text: #1a1a1a;
+    --muted: #666;
+    --accent: #0078d4;
+    --accent-hover: #006cbd;
+    --accent-bg: #e8f2fc;
+    --warn-bg: #fff8e1;
+    --warn-border: #f0c040;
+    --warn-text: #7a5800;
+    --success: #107c10;
+    --radius: 8px;
+    --shadow: 0 2px 12px rgba(0,0,0,0.10);
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1rem;
+    color: var(--text);
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+  header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  header p {
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .badge {
+    display: inline-block;
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffc107;
+    font-size: 12px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-top: 8px;
+    font-weight: 500;
+  }
+
+  .prog-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .prog-btn {
+    padding: 8px 20px;
+    border: 1.5px solid var(--border);
+    border-radius: 24px;
+    background: var(--card);
+    color: var(--muted);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .15s;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .prog-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .prog-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .prog-btn .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: currentColor; opacity: .7;
+  }
+
+  .sim-container {
+    width: 100%;
+    max-width: 680px;
+  }
+
+  .win-frame {
+    background: #1e1e2e;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow), 0 0 0 1px rgba(0,0,0,.15);
+  }
+
+  .titlebar {
+    background: #2d2d3f;
+    padding: 11px 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    user-select: none;
+  }
+  .tb-dot { width: 12px; height: 12px; border-radius: 50%; }
+  .tb-title {
+    color: #bbb;
+    font-size: 13px;
+    margin-left: 10px;
+    flex: 1;
+    text-align: center;
+    letter-spacing: .01em;
+  }
+
+  /* --- installer inner --- */
+  .installer {
+    background: #f5f5f5;
+    display: flex;
+    flex-direction: column;
+    min-height: 460px;
+  }
+
+  .inst-header {
+    padding: 22px 28px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    color: white;
+  }
+  .inst-logo {
+    width: 52px; height: 52px;
+    border-radius: 10px;
+    background: rgba(255,255,255,.18);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 700; color: white;
+    flex-shrink: 0;
+    letter-spacing: -.5px;
+  }
+  .inst-header-text .name { font-size: 16px; font-weight: 600; }
+  .inst-header-text .sub  { font-size: 12px; opacity: .7; margin-top: 2px; }
+
+  .inst-body {
+    padding: 24px 28px;
+    flex: 1;
+  }
+
+  /* progress */
+  .progress-bg { height: 4px; background: #ddd; border-radius: 2px; margin-bottom: 14px; }
+  .progress-bar { height: 4px; background: #0078d4; border-radius: 2px; transition: width .4s ease; }
+  .steps-dots { display: flex; gap: 5px; margin-bottom: 20px; align-items: center; }
+  .step-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #ccc; transition: background .2s;
+  }
+  .step-dot.done   { background: #0078d4; }
+  .step-dot.active { background: #0078d4; box-shadow: 0 0 0 3px #b3d4f0; }
+
+  .step-title { font-size: 17px; font-weight: 600; color: #1a1a1a; margin-bottom: 5px; }
+  .step-sub   { font-size: 13px; color: #666; margin-bottom: 18px; }
+
+  /* components */
+  .check-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+  .check-item { display: flex; align-items: flex-start; gap: 9px; font-size: 14px; color: #333; }
+  .check-item input[type=checkbox] { width: 16px; height: 16px; margin-top: 1px; cursor: pointer; flex-shrink: 0; }
+  .check-item label { cursor: pointer; line-height: 1.4; }
+
+  .tag {
+    font-size: 11px; background: #e3f0fb; color: #0058a0;
+    padding: 2px 7px; border-radius: 10px; font-weight: 500;
+    margin-left: 5px; white-space: nowrap;
+  }
+  .tag.green { background: #e6f4e6; color: #1a6e1a; }
+
+  .license-box {
+    background: white; border: 1px solid #bbb; border-radius: 4px;
+    padding: 12px 14px; font-size: 12px; color: #555;
+    height: 120px; overflow-y: auto; line-height: 1.7; margin-bottom: 12px;
+  }
+  .agree-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #333; }
+  .agree-row input { cursor: pointer; }
+
+  .path-row { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+  .path-box {
+    background: white; border: 1px solid #bbb; border-radius: 4px;
+    padding: 8px 12px; font-size: 13px; color: #333;
+    width: 100%; font-family: 'Consolas', 'Courier New', monospace;
+  }
+  .browse-btn {
+    background: #e0e0e0; border: 1px solid #bbb; padding: 7px 14px;
+    border-radius: 4px; font-size: 13px; cursor: pointer; color: #333;
+    white-space: nowrap; flex-shrink: 0;
+  }
+  .browse-btn:hover { background: #d0d0d0; }
+
+  .warn-box {
+    background: var(--warn-bg); border: 1px solid var(--warn-border);
+    border-radius: 4px; padding: 10px 13px;
+    font-size: 12px; color: var(--warn-text); margin-top: 14px; line-height: 1.5;
+  }
+  .info-box {
+    background: #e8f2fc; border: 1px solid #b3d4f0;
+    border-radius: 4px; padding: 10px 13px;
+    font-size: 12px; color: #004a8a; margin-top: 14px; line-height: 1.5;
+  }
+
+  /* install progress */
+  .fill-bar-wrap { background: #ddd; border-radius: 3px; height: 20px; overflow: hidden; }
+  .fill-bar { height: 100%; background: #0078d4; width: 0; transition: width .1s linear; border-radius: 3px; }
+  .install-status { font-size: 13px; color: #555; margin-top: 8px; }
+  .install-file   { font-size: 11px; color: #999; margin-top: 4px; font-family: 'Consolas', monospace; min-height: 16px; }
+
+  /* done */
+  .done-wrap { text-align: center; padding-top: 8px; }
+  .done-icon  { font-size: 48px; margin-bottom: 10px; }
+  .done-title { font-size: 17px; font-weight: 600; color: #107c10; margin-bottom: 6px; }
+  .done-sub   { font-size: 13px; color: #555; margin-bottom: 18px; line-height: 1.6; }
+  .done-path  { font-family: 'Consolas', monospace; font-size: 12px; background: #e8e8e8; padding: 4px 8px; border-radius: 3px; }
+  .launch-row { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 14px; color: #333; margin-top: 14px; }
+
+  /* footer */
+  .inst-footer {
+    background: #e8e8e8; padding: 14px 28px;
+    display: flex; justify-content: space-between; align-items: center;
+    border-top: 1px solid #ccc;
+  }
+  .inst-footer-info { font-size: 12px; color: #888; }
+  .footer-btns { display: flex; gap: 8px; }
+
+  .btn { padding: 8px 22px; border: none; border-radius: 4px; font-size: 14px; cursor: pointer; font-weight: 500; }
+  .btn-next  { background: #0078d4; color: white; }
+  .btn-next:hover { background: #006cbd; }
+  .btn-next:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-back  { background: #e0e0e0; color: #333; border: 1px solid #bbb; }
+  .btn-back:disabled  { opacity: .4; cursor: not-allowed; }
+  .btn-cancel { background: transparent; color: #555; border: 1px solid #bbb; }
+  .btn-cancel:hover { background: #f0f0f0; }
+
+  footer {
+    margin-top: 1.5rem;
+    font-size: 12px;
+    color: var(--muted);
+    text-align: center;
+    line-height: 1.7;
+  }
+
+  @media (max-width: 500px) {
+    body { padding: 1rem .5rem; }
+    .inst-body { padding: 18px 16px; }
+    .inst-header { padding: 16px; }
+    .inst-footer { padding: 12px 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🎮 Simulador de Instalação</h1>
+  <p>Prática interativa para alunos de desenvolvimento de jogos</p>
+  <span class="badge">⚠️ Simulação educacional — nenhum programa é instalado de verdade</span>
+</header>
+
+<div class="sim-container">
+  <div class="prog-tabs">
+    <button class="prog-btn active" onclick="loadProg('unityhub', this)">
+      <span>Unity Hub</span>
+    </button>
+    <button class="prog-btn" onclick="loadProg('unity', this)">
+      <span>Unity 2023 LTS</span>
+    </button>
+    <button class="prog-btn" onclick="loadProg('vs', this)">
+      <span>Visual Studio 2022</span>
+    </button>
+  </div>
+
+  <div class="win-frame">
+    <div class="titlebar">
+      <div class="tb-dot" style="background:#ff5f57"></div>
+      <div class="tb-dot" style="background:#febc2e"></div>
+      <div class="tb-dot" style="background:#28c840"></div>
+      <span class="tb-title" id="win-title">Unity Hub Setup</span>
+    </div>
+    <div id="installer-root" class="installer"></div>
+  </div>
+</div>
+
+<footer>
+  Simulador criado para fins educacionais &mdash; nenhum dado é enviado nem nada é instalado.<br>
+  Uso livre para fins de ensino.
+</footer>
+
+<script>
+const PROGS = {
+  unityhub: {
+    title: 'Unity Hub Setup',
+    logo: 'UH',
+    name: 'Unity Hub 3.8.0',
+    color: '#222233',
+    path: 'C:\\Program Files\\Unity Hub',
+    size: '356 MB',
+    steps: ['welcome','license','path','install','done'],
+    licenseOwner: 'Unity Technologies'
+  },
+  unity: {
+    title: 'Unity 2023.2 LTS Setup',
+    logo: 'U',
+    name: 'Unity 2023.2.20f1 LTS',
+    color: '#1a1a2e',
+    path: 'C:\\Program Files\\Unity\\Hub\\Editor\\2023.2.20f1',
+    size: '3,8 GB',
+    steps: ['welcome','modules','license','path','install','done'],
+    licenseOwner: 'Unity Technologies'
+  },
+  vs: {
+    title: 'Visual Studio 2022 Installer',
+    logo: 'VS',
+    name: 'Visual Studio Community 2022',
+    color: '#6b3fa0',
+    path: 'C:\\Program Files\\Microsoft Visual Studio\\2022\\Community',
+    size: '4,5 GB',
+    steps: ['welcome','workloads','license','path','install','done'],
+    licenseOwner: 'Microsoft Corporation'
+  }
+};
+
+let cur = 'unityhub';
+let stepIdx = 0;
+let agreed = false;
+let fillInterval = null;
+let fillPct = 0;
+
+function loadProg(prog, btn) {
+  cur = prog;
+  stepIdx = 0;
+  agreed = false;
+  fillPct = 0;
+  if (fillInterval) { clearInterval(fillInterval); fillInterval = null; }
+  document.querySelectorAll('.prog-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('win-title').textContent = PROGS[prog].title;
+  render();
+}
+
+function render() {
+  const p = PROGS[cur];
+  const step = p.steps[stepIdx];
+  const total = p.steps.length;
+  const pct = Math.round((stepIdx / (total - 1)) * 100);
+
+  const dotsHtml = p.steps.map((s, i) =>
+    `<div class="step-dot ${i < stepIdx ? 'done' : ''} ${i === stepIdx ? 'active' : ''}"></div>`
+  ).join('');
+
+  document.getElementById('installer-root').innerHTML = `
+    <div class="inst-header" style="background:${p.color}">
+      <div class="inst-logo">${p.logo}</div>
+      <div class="inst-header-text">
+        <div class="name">${p.name}</div>
+        <div class="sub">Assistente de Instalação do Windows</div>
+      </div>
+    </div>
+    <div class="inst-body">
+      <div class="progress-bg"><div class="progress-bar" style="width:${pct}%"></div></div>
+      <div class="steps-dots">${dotsHtml}</div>
+      ${renderStep(step, p)}
+    </div>
+    ${renderFooter(step, p)}
+  `;
+
+  if (step === 'install') startFill();
+}
+
+function renderStep(step, p) {
+  if (step === 'welcome') return `
+    <div class="step-title">Bem-vindo ao instalador</div>
+    <div class="step-sub">O assistente irá guiá-lo pela instalação do <strong>${p.name}</strong>.</div>
+    <ul class="check-list">
+      <li class="check-item"><span>📦</span><span>Versão: <strong>${p.name}</strong></span></li>
+      <li class="check-item"><span>💾</span><span>Espaço necessário em disco: <strong>${p.size}</strong></span></li>
+      <li class="check-item"><span>🖥️</span><span>Sistema: Windows 10 / 11 (64 bits)</span></li>
+      <li class="check-item"><span>🔒</span><span>Permissão de administrador necessária</span></li>
+    </ul>
+    <div class="warn-box">⚠️ Recomendado: feche outros programas antes de continuar para evitar conflitos durante a instalação.</div>
+  `;
+
+  if (step === 'license') return `
+    <div class="step-title">Contrato de licença do usuário final</div>
+    <div class="step-sub">Leia o contrato abaixo com atenção antes de prosseguir.</div>
+    <div class="license-box">
+CONTRATO DE LICENÇA DO USUÁRIO FINAL (EULA)
+${p.licenseOwner}
+
+Ao clicar em "Aceito" e instalar este software, você concorda com os termos e condições deste contrato de licença.
+
+1. CONCESSÃO DE LICENÇA
+${p.licenseOwner} concede a você uma licença limitada, pessoal, não exclusiva e intransferível para instalar e usar este software nos dispositivos que você possui ou controla.
+
+2. RESTRIÇÕES DE USO
+Você não pode: (a) fazer engenharia reversa, descompilar ou desmontar o software; (b) alugar, arrendar ou emprestar o software; (c) usar o software para fins ilegais ou não autorizados.
+
+3. ATUALIZAÇÕES AUTOMÁTICAS
+O software poderá verificar e baixar atualizações automaticamente. Você pode desativar este comportamento nas configurações.
+
+4. COLETA DE DADOS
+Dados de diagnóstico e uso anônimos podem ser coletados para melhorar o produto. Nenhum dado pessoal é compartilhado com terceiros sem seu consentimento.
+
+5. RESCISÃO
+Este contrato é rescindido automaticamente caso você viole qualquer uma de suas cláusulas. Ao término, você deve desinstalar o software.
+
+6. LIMITAÇÃO DE RESPONSABILIDADE
+O software é fornecido "como está". ${p.licenseOwner} não garante que o software será livre de erros ou funcionará sem interrupções.
+    </div>
+    <div class="agree-row">
+      <input type="checkbox" id="agree-cb" onchange="setAgreed(this.checked)" ${agreed ? 'checked' : ''}>
+      <label for="agree-cb">Li e aceito os termos do contrato de licença</label>
+    </div>
+    <div class="info-box" style="margin-top:12px">💡 <strong>Dica para aula:</strong> Em instalações reais, é importante ler o EULA antes de aceitar — ele define o que você pode ou não fazer com o software.</div>
+  `;
+
+  if (step === 'modules') return `
+    <div class="step-title">Módulos adicionais</div>
+    <div class="step-sub">Escolha os módulos que deseja instalar junto com o Unity Editor.</div>
+    <ul class="check-list">
+      <li class="check-item">
+        <input type="checkbox" id="m1" checked>
+        <label for="m1">Android Build Support <span class="tag">+1,2 GB</span></label>
+      </li>
+      <li class="check-item">
+        <input type="checkbox" id="m2">
+        <label for="m2">iOS Build Support <span class="tag">+2,1 GB</span></label>
+      </li>
+      <li class="check-item">
+        <input type="checkbox" id="m3" checked>
+        <label for="m3">WebGL Build Support <span class="tag">+0,4 GB</span></label>
+      </li>
+      <li class="check-item">
+        <input type="checkbox" id="m4">
+        <label for="m4">Linux Build Support <span class="tag">+0,9 GB</span></label>
+      </li>
+      <li class="check-item">
+        <input type="checkbox" id="m5" checked>
+        <label for="m5">Microsoft Visual Studio Community 2022 <span class="tag green">recomendado</span></label>
+      </li>
+      <li class="check-item">
+        <input type="checkbox" id="m6">
+        <label for="m6">Documentação offline <span class="tag">+0,2 GB</span></label>
+      </li>
+    </ul>
+    <div class="info-box">💡 Para a maioria dos projetos de aula, o <strong>WebGL</strong> e o <strong>Visual Studio</strong> são os mais importantes.</div>
+  `;
+
+  if (step === 'workloads') return `
+    <div class="step-title">Cargas de trabalho</div>
+    <div class="step-sub">Selecione o que você vai desenvolver com o Visual Studio.</div>
+    <ul class="check-list">
+      <li class="check-item">
+        <input type="checkbox" id="w1" checked>
+        <label for="w1">Desenvolvimento de jogos com Unity <span class="tag green">recomendado para esta aula</span></label>
+      </li>
+      <li class="check-item">
+        <input type="checkbox" id="w2">
+        <label for="w2">Desenvolvimento de desktop com .NET</label>
+      </li>
+      <li class="check-item">
+        <input type="checkbox" id="w3">
+        <label for="w3">Desenvolvimento para ASP.NET e Web</label>
+      </li>
+      <li class="check-item">
+        <input type="checkbox" id="w4">
+        <label for="w4">Desenvolvimento de jogos com C++</label>
+      </li>
+      <li class="check-item">
+        <input type="checkbox" id="w5">
+        <label for="w5">Desenvolvimento móvel com .NET (Xamarin)</label>
+      </li>
+    </ul>
+    <div class="info-box">💡 Para programar em Unity, selecione apenas <strong>"Desenvolvimento de jogos com Unity"</strong> — instala o C# e as ferramentas necessárias.</div>
+  `;
+
+  if (step === 'path') return `
+    <div class="step-title">Pasta de destino</div>
+    <div class="step-sub">Escolha onde o programa será instalado no seu computador.</div>
+    <label style="font-size:13px;color:#555;display:block;margin-bottom:4px">Instalar em:</label>
+    <div class="path-row">
+      <input class="path-box" type="text" id="path-input" value="${p.path}">
+      <button class="browse-btn" onclick="alert('Em um instalador real, esta opção abre uma janela para escolher a pasta de destino.')">Procurar…</button>
+    </div>
+    <div style="margin-top:8px;font-size:12px;color:#888">Espaço disponível neste disco: 187,4 GB &nbsp;|&nbsp; Necessário: ${p.size}</div>
+    <div class="warn-box">
+      ⚠️ <strong>Atenção:</strong> Evite instalar em pastas com espaços ou caracteres especiais no nome (ex: "Meus Programas"). Prefira o caminho padrão sugerido.
+    </div>
+  `;
+
+  if (step === 'install') return `
+    <div class="step-title">Instalando…</div>
+    <div class="step-sub">Aguarde enquanto os arquivos são copiados para o seu computador.</div>
+    <div class="fill-bar-wrap"><div class="fill-bar" id="fill-bar"></div></div>
+    <div class="install-status" id="install-status">Preparando arquivos…</div>
+    <div class="install-file" id="install-file"></div>
+  `;
+
+  if (step === 'done') return `
+    <div class="done-wrap">
+      <div class="done-icon">✅</div>
+      <div class="done-title">Instalação concluída com sucesso!</div>
+      <div class="done-sub">
+        O <strong>${p.name}</strong> foi instalado em:<br>
+        <span class="done-path">${p.path}</span>
+      </div>
+      <div class="launch-row">
+        <input type="checkbox" id="launch-cb" checked>
+        <label for="launch-cb">
+          Executar ${cur === 'unityhub' ? 'Unity Hub' : cur === 'unity' ? 'Unity Editor' : 'Visual Studio'} ao fechar
+        </label>
+      </div>
+    </div>
+  `;
+
+  return '';
+}
+
+function renderFooter(step, p) {
+  const isFirst = stepIdx === 0;
+  const isDone  = step === 'done';
+  const isInstall = step === 'install';
+  const isLicense = step === 'license';
+  const isLast  = stepIdx === p.steps.length - 2;
+
+  if (isDone) return `
+    <div class="inst-footer">
+      <span class="inst-footer-info">Instalação concluída</span>
+      <div class="footer-btns">
+        <button class="btn btn-next" onclick="resetSim()">Fechar</button>
+      </div>
+    </div>`;
+
+  if (isInstall) return `
+    <div class="inst-footer">
+      <span class="inst-footer-info" id="pct-label">0% concluído</span>
+      <div class="footer-btns">
+        <button class="btn btn-cancel" disabled style="opacity:.4;cursor:not-allowed">Cancelar</button>
+      </div>
+    </div>`;
+
+  return `
+    <div class="inst-footer">
+      <button class="btn btn-cancel" onclick="resetSim()">Cancelar</button>
+      <div class="footer-btns">
+        <button class="btn btn-back" onclick="prevStep()" ${isFirst ? 'disabled' : ''}>← Voltar</button>
+        <button class="btn btn-next" onclick="nextStep()" id="btn-next" ${isLicense && !agreed ? 'disabled' : ''}>
+          ${isLast ? 'Instalar' : 'Avançar →'}
+        </button>
+      </div>
+    </div>`;
+}
+
+function nextStep() {
+  const p = PROGS[cur];
+  const step = p.steps[stepIdx];
+  if (step === 'license' && !agreed) {
+    alert('Você precisa aceitar os termos do contrato de licença para continuar.');
+    return;
+  }
+  if (stepIdx < p.steps.length - 1) { stepIdx++; render(); }
+}
+
+function prevStep() {
+  if (stepIdx > 0) { stepIdx--; render(); }
+}
+
+function setAgreed(v) {
+  agreed = v;
+  const btn = document.getElementById('btn-next');
+  if (btn) btn.disabled = !v;
+}
+
+function resetSim() {
+  stepIdx = 0; agreed = false; fillPct = 0;
+  if (fillInterval) { clearInterval(fillInterval); fillInterval = null; }
+  render();
+}
+
+const INSTALL_MSGS = [
+  ['Verificando requisitos do sistema…', 'Checking prerequisites...'],
+  ['Baixando componentes…',              'Downloading: core_runtime.pak'],
+  ['Extraindo arquivos principais…',     'Extracting: editor_binaries.pak'],
+  ['Instalando bibliotecas…',            'Installing: lib\\unity_core.dll'],
+  ['Registrando no sistema…',            'Writing: HKEY_LOCAL_MACHINE\\SOFTWARE\\...'],
+  ['Criando atalhos…',                   'Creating shortcuts...'],
+  ['Finalizando instalação…',            'Finalizing...']
+];
+
+function startFill() {
+  fillPct = 0;
+  let msgIdx = 0;
+  if (fillInterval) clearInterval(fillInterval);
+
+  fillInterval = setInterval(() => {
+    fillPct += Math.random() * 1.8 + 0.3;
+    if (fillPct > 100) fillPct = 100;
+
+    const bar    = document.getElementById('fill-bar');
+    const status = document.getElementById('install-status');
+    const file   = document.getElementById('install-file');
+    const pctLbl = document.getElementById('pct-label');
+
+    const roundPct = Math.round(fillPct);
+    msgIdx = Math.min(Math.floor(fillPct / (100 / INSTALL_MSGS.length)), INSTALL_MSGS.length - 1);
+
+    if (bar)    bar.style.width = fillPct + '%';
+    if (pctLbl) pctLbl.textContent = roundPct + '% concluído';
+    if (status) status.textContent = INSTALL_MSGS[msgIdx][0];
+    if (file)   file.textContent   = INSTALL_MSGS[msgIdx][1];
+
+    if (fillPct >= 100) {
+      clearInterval(fillInterval);
+      fillInterval = null;
+      setTimeout(() => { stepIdx++; render(); }, 900);
+    }
+  }, 70);
+}
+
+// init
+render();
+</script>
+</body>
+</html>
